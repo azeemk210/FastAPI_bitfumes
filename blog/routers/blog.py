@@ -1,66 +1,31 @@
-from fastapi import APIRouter
-from .. import schemas, models
-from typing import List
-from fastapi import FastAPI, Depends, status, Response, HTTPException
-from blog.database import engine, get_db
-from sqlalchemy.orm  import Session
-
+from fastapi import APIRouter, Depends, status, Response
+from blog import schemas
+from blog.database import get_db
+from sqlalchemy.orm import Session
+from blog.repository import blog
 
 router = APIRouter(
-    prefix = "/blog",
-     tags=['Blogs']
-
+    prefix="/blog",
+    tags=["Blogs"]
 )
 
-
-@router.post("/", status_code=201)
-def create_blog(request: schemas.BlogBase, db: Session = Depends(get_db)):
-    blog = models.Blog(title=request.title, body=request.body, user_id=1)
-    db.add(blog)
-    db.commit()
-    db.refresh(blog)
-    return blog
-
-@router.get("/", status_code=200, response_model=List[schemas.BlogBase])
+@router.get("/", response_model=list[schemas.ShowBlog])
 def get_blogs(db: Session = Depends(get_db)):
-    blogs = db.query(models.Blog).all()
-    return blogs
+    return blog.get_all_blogs(db)
 
-@router.get("/{blog_id}", status_code=200, response_model=schemas.ShowBlog)
+@router.get("/{blog_id}", response_model=schemas.ShowBlog)
 def get_blog(blog_id: int, db: Session = Depends(get_db)):
-    blog = db.query(models.Blog).filter(models.Blog.id == blog_id).first()
-    if not blog:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Blog with ID {blog_id} not found"
-        )
-    return blog
+    return blog.get_blog(blog_id, db)
 
+@router.post("/", response_model=schemas.ShowBlog, status_code=status.HTTP_201_CREATED)
+def create_blog(request: schemas.BlogBase, db: Session = Depends(get_db), user_id: int = 1):
+    return blog.create_blog(request, db, user_id)
 
-@router.delete("/{blog_id}", status_code=204)
-def delete_blog(blog_id: int, db: Session = Depends(get_db)):
-    blog = db.query(models.Blog).filter(models.Blog.id == blog_id).first()
-    if not blog:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Blog with ID {blog_id} not found"
-        )
-    db.delete(blog)
-    db.commit()
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
-
-@router.put("/{blog_id}", status_code=200)
+@router.put("/{blog_id}", response_model=schemas.ShowBlog)
 def update_blog(blog_id: int, request: schemas.BlogBase, db: Session = Depends(get_db)):
-    blog = db.query(models.Blog).filter(models.Blog.id == blog_id).first()
-    if not blog:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Blog with ID {blog_id} not found"
-        )
-    blog.title = request.title
-    blog.body = request.body
-    db.commit()
-    db.refresh(blog)
-    return blog
+    return blog.update_blog(blog_id, request, db)
 
-
+@router.delete("/{blog_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_blog(blog_id: int, db: Session = Depends(get_db)):
+    blog.delete_blog(blog_id, db)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

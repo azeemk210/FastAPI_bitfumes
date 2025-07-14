@@ -5,8 +5,6 @@ class BlogBase(BaseModel):
     title: str
     body: str
 
-class ShowBlog(BlogBase):
-    pass
 
 class User(BaseModel):
     name: str
@@ -15,6 +13,21 @@ class User(BaseModel):
 
 
 class ShowUser(BaseModel):
-    id: int
     name: str
     email: str
+
+    class Config():
+        orm_mode = True
+
+class ShowBlog(BlogBase):
+    creator: ShowUser
+
+    class Config():
+        orm_mode = True
+
+
+class ShowUserWithBlogs(ShowUser):
+    blogs: List[BlogBase] = []
+
+    class Config():
+        orm_mode = True
